@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://unpkg.com/xlsx/dist/xlsx.full.min.js"></script>
+    <script src="https://unpkg.com/jszip/dist/jszip.min.js"></script>
+    <style>
+        table {
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+
+        th,
+        td {
+            border: 1px solid #ccc;
+            padding: 8px;
+            text-align: center;
+        }
+    </style>
+    <title>Document</title>
+</head>
+
+<body>
+    <input type="file" id="excelFile" />
+    <div>
+        <br>
+        <label for="sheetSelect">Hoja:</label>
+        <select id="sheetSelect" onchange="loadSheet()"></select>
+        <button onclick="loadSheet()">Abrir</button>
+    </div>
+    <br>
+    <div>
+        <label for="columnSelect">Columna:</label>
+        <select id="columnSelect" onchange="mostrarColumna()"></select>
+    </div>
+    <br>
+    <div>
+        <label for="searchInput">Buscar:</label>
+        <input type="text" id="searchInput" oninput="search()" />
+        <button onclick="search()">Buscar</button>
+    </div>
+    <br>
+    <div id="tableContainer"></div>
+
+
+    <script>
+        var workbook = null;
+        var selectedSheetIndex = 0;
+        var jsonData = null;
+
+        // Función para leer el archivo Excel
+        function readExcelFile(file) {
+            var reader = new FileReader();
+
+            reader.onload = function (e) {
+                var data = new Uint8Array(e.target.result);
+                workbook = XLSX.read(data, { type: 'array' });
+
+                // Cargar opciones de hojas en el selector
+                var sheetSelect = document.getElementById('sheetSelect');
+                sheetSelect.innerHTML = '';
+
+                workbook.SheetNames.forEach(function (sheetName, index) {
+                    var option = document.createElement('option');
+                    option.value = index;
+                    option.textContent = sheetName;
+                    sheetSelect.appendChild(option);
+                });
+
+                // Seleccionar la primera hoja por defecto
+                selectedSheetIndex = 0;
+                sheetSelect.selectedIndex = selectedSheetIndex;
+
+                // Cargar la hoja seleccionada
+                loadSheet();
+            };
+
+            reader.readAsArrayBuffer(file);
+        }
+
+        // Función para cargar la hoja seleccionada
+        function loadSheet() {
+            var sheetSelect = document.getElementById('sheetSelect');
+            selectedSheetIndex = sheetSelect.value;
+
+            // Obtener la hoja seleccionada
+            var worksheet = workbook.Sheets[workbook.SheetNames[selectedSheetIndex]];
+            jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+
+            // Generar la tabla HTML
+            var tableContainer = document.getElementById('tableContainer');
+            var table = document.createElement('table');
+
+            // Crear la cabecera de la tabla
+            var headers = Object.keys(jsonData[0]);
+            var headerRow = document.createElement('tr');
+            for (var i = 0; i < headers.length; i++) {
+                var headerCell = document.createElement('th');
+                headerCell.textContent = headers[i];
+                headerRow.appendChild(headerCell);
+            }
+            table.appendChild(headerRow);
+
+            // Crear las filas de datos
+            for (var j = 0; j < jsonData.length; j++) {
+                var dataRow = document.createElement('tr');
+                for (var k = 0; k < headers.length; k++) {
+                    var dataCell = document.createElement('td');
+                    dataCell.textContent = jsonData[j][headers[k]];
+                    dataRow.appendChild(dataCell);
+                }
+                table.appendChild(dataRow);
+            }
+
+            // Agregar la tabla al contenedor
+            tableContainer.innerHTML = '';
+            tableContainer.appendChild(table);
+
+            // Actualizar opciones del selector de columna
+            var columnSelect = document.getElementById('columnSelect');
+            columnSelect.innerHTML = '';
+            for (var i = 0; i < headers.length; i++) {
+                var option = document.createElement('option');
+                option.value = i;
+                option.textContent = headers[i];
+                columnSelect.appendChild(option);
+            }
+        }
+
+        // Función para mostrar la columna seleccionada
+        function mostrarColumna() {
+            var columnSelect = document.getElementById('columnSelect');
+            var selectedColumn = columnSelect.value;
+
+            var table = document.querySelector('#tableContainer table');
+            var rows = table.getElementsByTagName('tr');
+
+            for (var i = 0; i < rows.length; i++) {
+                var cells = rows[i].getElementsByTagName('td');
+                for (var j = 0; j < cells.length; j++) {
+                    if (j == selectedColumn) {
+                        cells[j].style.display = 'table-cell';
+                    } else {
+                        cells[j].style.display = 'none';
+                    }
+                }
+            }
+        }
+
+        // Función de búsqueda
+        function search() {
+            var searchInput = document.getElementById('searchInput').value.toLowerCase();
+            var table = document.querySelector('#tableContainer table');
+            var rows = table.getElementsByTagName('tr');
+
+            for (var i = 1; i < rows.length; i++) {
+                var cells = rows[i].getElementsByTagName('td');
+                var found = false;
+
+                for (var j = 0; j < cells.length; j++) {
+                    var cellText = cells[j].textContent.toLowerCase();
+
+                    if (cellText.includes(searchInput)) {
+                        rows[i].style.display = '';
+                        found = true;
+                        break;
+                    }
+                }
+
+                if (!found) {
+                    rows[i].style.display = 'none';
+                }
+            }
+        }
+
+        // Manejar el evento de cambio de archivo
+        var excelFileInput = document.getElementById('excelFile');
+        excelFileInput.addEventListener('change', function (e) {
+            var file = e.target.files[0];
+            readExcelFile(file);
+        });
+    </script>
+
+</body>
+
+</html>
